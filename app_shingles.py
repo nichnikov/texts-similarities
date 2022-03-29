@@ -1,10 +1,19 @@
 import logging
-import kshingle as ks
 from waitress import serve
-from gensim.corpora import Dictionary
+from itertools import islice
 from flask import Flask, jsonify, request
 from texts_processing import TextsTokenizer
 from flask_restplus import Api, Resource, fields
+
+
+def shingle_func(splited_text: [], shingle: int) -> []:
+    """"""
+    if len(splited_text) <= shingle:
+        return ["".join(splited_text)]
+    else:
+        shingles_list = [list(islice(splited_text, i, i + shingle)) for i in range(len(splited_text))]
+        return ["".join(l) for l in shingles_list if len(l) == shingle]
+
 
 logger = logging.getLogger("app_duplisearcher")
 logger.setLevel(logging.DEBUG)
@@ -34,14 +43,11 @@ class Shingles(Resource):
         tx2 = json_data["Text_2"]
         shingles_len = json_data["Shingle_len"]
 
-        lm_tx1 = tokenizer([tx1])
-        lm_tx2 = tokenizer([tx2])
-        dic = Dictionary(lm_tx1 + lm_tx2)
-        tx1_num = "".join([str(dic.token2id[w]) for w in lm_tx1[0]])
-        tx2_num = "".join([str(dic.token2id[w]) for w in lm_tx2[0]])
+        lm_tx1 = tokenizer([tx1])[0]
+        lm_tx2 = tokenizer([tx2])[0]
 
-        t1_shingles = ks.shingleset_list(tx1_num, klist=[shingles_len])
-        t2_shingles = ks.shingleset_list(tx2_num, klist=[shingles_len])
+        t1_shingles = set(shingle_func(lm_tx1, shingles_len))
+        t2_shingles = set(shingle_func(lm_tx2, shingles_len))
         intersection = t1_shingles & t2_shingles
         union = t1_shingles.union(t2_shingles)
 
